@@ -1,0 +1,6 @@
+[submodule "llvm"]
+	path = llvm
+	url = git@github.com:kurapov-peter/llvm.git
+[submodule "SPIRV-LLVM-Translator"]
+	path = SPIRV-LLVM-Translator
+	url = git@github.com:kurapov-peter/SPIRV-LLVM-Translator.git
