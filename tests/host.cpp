@@ -23,7 +23,8 @@ static void L0InitContext(ze_driver_handle_t &hDriver,
                           ze_device_handle_t &hDevice,
                           ze_module_handle_t &hModule,
                           ze_command_queue_handle_t &hCommandQueue,
-                          ze_context_handle_t &hContext) {
+                          ze_context_handle_t &hContext,
+                          ze_module_build_log_handle_t &buildlog) {
   ze_init_flag_t init_flag;
   L0_SAFE_CALL(zeInit(0));
 
@@ -81,7 +82,7 @@ static void L0InitContext(ze_driver_handle_t &hDriver,
   is.open(fn, std::ios::binary);
   if (!is.good()) {
     fprintf(stderr, "Open %s failed\n", fn.c_str());
-    return;
+    exit(1);
   }
 
   is.seekg(0, std::ios::end);
@@ -107,8 +108,29 @@ static void L0InitContext(ze_driver_handle_t &hDriver,
   moduleDesc.inputSize = codeSize;
   moduleDesc.pConstants = nullptr;
   moduleDesc.pInputModule = codeBin;
-  L0_SAFE_CALL(
-      zeModuleCreate(hContext, hDevice, &moduleDesc, &hModule, nullptr));
+  // enable build logs
+  auto result = (zeModuleCreate(hContext, hDevice, &moduleDesc, &hModule, &buildlog));
+  if (result != 0)
+  {
+      size_t szLog = 0;
+      zeModuleBuildLogGetString(buildlog, &szLog, nullptr);
+      std::cout << "Got a build log of size " << szLog << std::endl;
+
+      //char_t* strLog = allocate(szLog);
+      char* strLog = (char*) malloc(szLog);
+      zeModuleBuildLogGetString(buildlog, &szLog, strLog);
+
+      // Save log to disk.
+      std::ofstream theLog;
+      theLog.open("build.txt");
+      theLog << strLog << std::endl;
+      theLog.close();
+
+      free(strLog);
+      fprintf(stderr, "%s:%d: L0 error %x\n", __FILE__, __LINE__, (int)result);                                                    \
+      exit(1);
+
+  }
 }
 
 template <typename T, size_t N> struct AllignedArray { T data[N]; };
@@ -119,7 +141,8 @@ int main() {
   ze_driver_handle_t hDriver = nullptr;
   ze_command_queue_handle_t hCommandQueue = nullptr;
   ze_context_handle_t hContext = nullptr;
-  L0InitContext(hDriver, hDevice, hModule, hCommandQueue, hContext);
+  ze_module_build_log_handle_t buildlog = nullptr;
+  L0InitContext(hDriver, hDevice, hModule, hCommandQueue, hContext, buildlog);
 
   ze_command_list_handle_t hCommandList;
   ze_kernel_handle_t hKernel;
