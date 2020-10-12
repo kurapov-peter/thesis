@@ -9,6 +9,18 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "llvm/IR/LegacyPassManager.h"
+
+#include "llvm/GenXIntrinsics/GenXIntrinsics.h"
+#include "llvm/GenXIntrinsics/GenXSPIRVWriterAdaptor.h"
+
+//#define USE_VECTOR_BACKEND
+
+
+void addPasses(llvm::legacy::PassManager &PM) {
+  PM.add(llvm::createGenXSPIRVWriterAdaptorPass());
+}
+
 int translate(const std::string &filename) {
   using namespace llvm;
   SMDiagnostic Err;
@@ -29,6 +41,13 @@ int translate(const std::string &filename) {
     }
     // errs() << f->getName() << "\n";
   }
+
+  // Prepare IR for igc
+#ifdef USE_VECTOR_BACKEND
+  legacy::PassManager PM;
+  addPasses(PM);
+  PM.run(*M);
+#endif
 
   // Dump to stderr for now
   M->print(errs(), nullptr);
